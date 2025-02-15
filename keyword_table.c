@@ -64,9 +64,7 @@ KeywordTable* initKeywordTable(void) {
 
 // Lookup a keyword in the table
 TokenType lookupKeyword(KeywordTable* table, const char* keyword) {
-    printf("DEBUG: Looking up keyword: %s\n", keyword);
     if (strcmp(keyword, "_main") == 0) {
-        printf("DEBUG: Found _main match\n");
         return TK_MAIN;
     }
 
