@@ -119,25 +119,33 @@ static char* getLexeme(void) {
     int bufferIndex = lexerBuffer->begin;
     int currentBuf = lexerBuffer->currentBuffer;
     
-    while (bufferIndex != lexerBuffer->forward) {
+    while (bufferIndex != lexerBuffer->forward && i < MAX_LEXEME_LEN - 1) {
         char c;
         if (currentBuf == 1) {
             c = lexerBuffer->buffer1[bufferIndex];
+            bufferIndex++;
+            if (bufferIndex >= BUFFER_SIZE) {
+                currentBuf = 2;
+                bufferIndex = 0;
+            }
         } else {
             c = lexerBuffer->buffer2[bufferIndex];
+            bufferIndex++;
+            if (bufferIndex >= BUFFER_SIZE) {
+                currentBuf = 1;
+                bufferIndex = 0;
+            }
         }
         
-        // Check for token boundaries
-        //if (i > 0 && (isspace(c) || isSpecialChar(c))) {
-          //  break;
-        //}
+        // Stop at whitespace or special characters for identifiers
+        if (currentState >= 35 && currentState <= 53) {
+            if (isspace(c) || ispunct(c)) {
+                retract(1);
+                break;
+            }
+        }
         
         lexeme[i++] = c;
-        bufferIndex++;
-        if (bufferIndex >= BUFFER_SIZE) {
-            currentBuf = (currentBuf == 1) ? 2 : 1;
-            bufferIndex = 0;
-        }
     }
     lexeme[i] = '\0';
     return lexeme;
@@ -277,23 +285,22 @@ Token* getNextToken(void) {
             case 16:  // < state
                 c = getNextChar();
                 if (c == '-') {
-                    char* ahead = malloc(3);
-                    for(int i = 0; i < 3; i++) {
-                        ahead[i] = getNextChar();
-                    }
-                    if (ahead[0] == '-' && ahead[1] == '-' && ahead[2] == '-') {
-                        token->type = TK_ASSIGNOP;
-                        token->lexeme = strdup("<---");
-                        free(ahead);
-                        return token;
-                    }
-                    retract(3);
-                    free(ahead);
+                    currentState = 17;
                 }
-                retract(1);
-                token->type = TK_LT;
-                token->lexeme = strdup("<");
-                return token;
+                else if (c == '=') {
+                    token->type = TK_LE;
+                    token->lexeme = strdup("<=");
+                    token->lineNo = lexerBuffer->lineNo;
+                    return token;
+                }
+                else {
+                    retract(1);
+                    token->type = TK_LT;
+                    token->lexeme = strdup("<");
+                    token->lineNo = lexerBuffer->lineNo;
+                    return token;
+                }
+                break;
 
             case 17:  // <- state
                 c = getNextChar();
@@ -385,6 +392,7 @@ Token* getNextToken(void) {
                     currentState = 31;
                 }
                 else {
+                    retract(1);
                     token->type = TK_ERROR;
                     token->lexeme = strdup("&");
                     token->lineNo = lexerBuffer->lineNo;
@@ -459,37 +467,45 @@ Token* getNextToken(void) {
                     return token;
                 }
 
-                case 40:  // Field identifier or keyword
-                c = getNextChar();
+            case 40:  // Field identifier or keyword state
                 if (isalpha(c)) {
                     // Continue reading alphabets
+                    c = getNextChar();
+                    if (c == EOF) {
+                        retract(1);
+                        token->lexeme = getLexeme();
+                        TokenType keywordType = lookupKeyword(keywordTable, token->lexeme);
+                        if (keywordType != TK_ID) {
+                            token->type = keywordType;
+                        } else {
+                            token->type = TK_FIELDID;
+                        }
+                        token->lineNo = lexerBuffer->lineNo;
+                        return token;
+                    }
                     continue;
                 }
-                else if (c == '_') {
-                    // If we encounter an underscore, retract and return current token
+                else if (isdigit(c) || ispunct(c) || isspace(c) || c == EOF) {
+                    // If we encounter a digit, punctuation, space, or EOF, 
+                    // retract and return the identifier/keyword
                     retract(1);
                     token->lexeme = getLexeme();
                     TokenType keywordType = lookupKeyword(keywordTable, token->lexeme);
                     if (keywordType != TK_ID) {
                         token->type = keywordType;
-                    }
-                    else {
+                    } else {
                         token->type = TK_FIELDID;
                     }
                     token->lineNo = lexerBuffer->lineNo;
                     return token;
                 }
                 else {
+                    // Invalid character in identifier
                     retract(1);
+                    token->type = TK_ERROR;
                     token->lexeme = getLexeme();
-                    TokenType keywordType = lookupKeyword(keywordTable, token->lexeme);
-                    if (keywordType != TK_ID) {
-                        token->type = keywordType;
-                    }
-                    else {
-                        token->type = TK_FIELDID;
-                    }
                     token->lineNo = lexerBuffer->lineNo;
+                    token->errorType = 3; // Unknown pattern
                     return token;
                 }
                 break;
@@ -569,7 +585,6 @@ Token* getNextToken(void) {
             case 47:  // Function identifier (starts with _)
                 c = getNextChar();
                 if (isalpha(c)) {
-                    printf("DEBUG: State 47 - Got alpha char: %c\n", c);
                     currentState = 48;
                 } else {
                     token->type = TK_ERROR;
@@ -587,9 +602,7 @@ Token* getNextToken(void) {
                 } else {
                     retract(1);
                     char* lexeme = getLexeme();
-                    printf("DEBUG: State 48 - Got lexeme: %s\n", lexeme);
                     TokenType keywordType = lookupKeyword(keywordTable, lexeme);
-                    printf("DEBUG: State 48 - Keyword lookup returned: %d\n", keywordType);
                     if (strcmp(lexeme, "_main") == 0) {
                         token->type = TK_MAIN;
                     } else {
