@@ -127,28 +127,25 @@ static char* getLexeme(void) {
     while (bufferIndex != lexerBuffer->forward && i < MAX_LEXEME_LEN - 1) {
         char c;
         if (currentBuf == 1) {
-            c = lexerBuffer->buffer1[bufferIndex++];
-            if (bufferIndex >= BUFFER_SIZE) { 
-                currentBuf = 2; 
-                bufferIndex = 0; 
-            }
+            c = lexerBuffer->buffer1[bufferIndex];
         } else {
-            c = lexerBuffer->buffer2[bufferIndex++];
-            if (bufferIndex >= BUFFER_SIZE) { 
-                currentBuf = 1; 
-                bufferIndex = 0; 
-            }
+            c = lexerBuffer->buffer2[bufferIndex];
         }
 
-        // Allow underscore as part of identifiers
-        if (currentState >= 35 && currentState <= 53) {
-            if (isspace(c) || (ispunct(c) && c != '_')) {
-                break;
-            }
+        // Break if we hit a non-identifier character
+        if (!isalnum(c) && c != '_') {
+            break;
         }
 
         lexeme[i++] = c;
+        bufferIndex++;
+        
+        if (bufferIndex >= BUFFER_SIZE) {
+            currentBuf = (currentBuf == 1) ? 2 : 1;
+            bufferIndex = 0;
+        }
     }
+    
     lexeme[i] = '\0';
     return lexeme;
 }
@@ -190,6 +187,7 @@ Token* getNextToken(void) {
                     token->type = TK_COMMENT;
                     token->lexeme = strdup("%");
                     token->lineNo = lexerBuffer->lineNo - 1;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
 
@@ -204,8 +202,13 @@ Token* getNextToken(void) {
                 else if (c == '[') currentState = 41;  // Left square bracket
                 else if (c == ']') currentState = 42;  // Right square bracket
                 else if (c == '_') currentState = 2;  // Function identifier
-                else if (c >= 'b' && c <= 'd') currentState = 8;  // [b-d] identifiers
-                else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) currentState = 6;  // Field identifiers
+                else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                    if (c >= 'b' && c <= 'd') {
+                        currentState = 8;  // [b-d] identifiers
+                    } else {
+                        currentState = 6;  // Field identifiers and other identifiers
+                    }
+                }
                 else if (isdigit(c)) {
                     numBuffer[numLen++] = c;
                     currentState = 43;  // Number recognition
@@ -261,6 +264,7 @@ Token* getNextToken(void) {
                             token->errorType = 2;  // Unknown symbol
                     }
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 break;
@@ -299,6 +303,7 @@ Token* getNextToken(void) {
                     }
                     token->lexeme = lexeme;
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 break;
@@ -324,19 +329,28 @@ Token* getNextToken(void) {
                 break;
 
             case 6: // Field identifier state
-                if (isalpha(c)) {
-                    continue;  // Stay in state 4 as per DFA loop
+                if (isalnum(c)) {
+                    currentState = 6;  // Stay in state 6 for alphanumeric characters
+                    continue;
                 } else {
                     retract(1);
                     char* lexeme = getLexeme();
                     TokenType keywordType = lookupKeyword(keywordTable, lexeme);
+                    
+                    // Check if it's a keyword first
                     if (keywordType != TK_ID) {
                         token->type = keywordType;
                     } else {
-                        token->type = TK_FIELDID;
+                        // Not a keyword, check if it starts with lowercase letter
+                        if (islower(lexeme[0])) {
+                            token->type = TK_FIELDID;
+                        } else {
+                            token->type = TK_ID;
+                        }
                     }
                     token->lexeme = lexeme;
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 break;
@@ -400,6 +414,7 @@ Token* getNextToken(void) {
                     token->type = TK_EQ;
                     token->lexeme = strdup("==");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 token->type = TK_ERROR;
@@ -414,6 +429,7 @@ Token* getNextToken(void) {
                     token->type = TK_NE;
                     token->lexeme = strdup("!=");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 retract(1);
@@ -431,6 +447,7 @@ Token* getNextToken(void) {
                     token->type = TK_LE;
                     token->lexeme = strdup("<=");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 } else {
                     retract(1);
@@ -450,9 +467,26 @@ Token* getNextToken(void) {
                     token->type = TK_LT;
                     token->lexeme = strdup("<");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 break;
+
+            case 25:
+                c = getNextChar();
+                    if (c == '-') {
+                        currentState=26;
+                    }
+                    else {
+                        retract(2);
+                        token->type=TK_LT;
+                        token->lexeme = strdup("<");
+                        token->lineNo = lexerBuffer->lineNo;
+                        lexerBuffer->begin = lexerBuffer->forward; 
+                        return token;
+                    }
+                    break;
+                
 
             case 26: // Second - of assignment
                 c = getNextChar();
@@ -460,6 +494,7 @@ Token* getNextToken(void) {
                     token->type = TK_ASSIGNOP;
                     token->lexeme = strdup("<---");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 retract(3);
@@ -474,6 +509,7 @@ Token* getNextToken(void) {
                     token->type = TK_GE;
                     token->lexeme = strdup(">=");
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 retract(1);
@@ -508,6 +544,7 @@ Token* getNextToken(void) {
                     }
                     token->lexeme = lexeme;
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
             
@@ -598,10 +635,11 @@ Token* getNextToken(void) {
                     currentState = 52;
                 } else {
                     retract(1);
-                    token->type = TK_RNUM;
+                    token->type = TK_ERROR;
                     token->lexeme = strdup(numBuffer);
-                    token->value.realValue = atof(numBuffer);
                     token->lineNo = lexerBuffer->lineNo;
+                    token->errorType = 3;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 break;
