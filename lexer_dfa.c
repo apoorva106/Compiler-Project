@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,18 +102,66 @@ static char getNextChar(void) {
     return c;
 }
 
-// Retract the forward pointer
+//Retract the forward pointer
+// static void retract(int count) {
+//     while (count > 0) {
+//         if (lexerBuffer->forward == 0) {
+//             lexerBuffer->currentBuffer = (lexerBuffer->currentBuffer == 1) ? 2 : 1;
+//             lexerBuffer->forward = BUFFER_SIZE - 1;
+//         } else {
+//             lexerBuffer->forward--;
+//         }
+//         count--;
+//     }
+// }
+
+// static void retract(int count) {
+//     while (count > 0) {
+//         if (lexerBuffer->forward == 0) {
+//             lexerBuffer->currentBuffer = (lexerBuffer->currentBuffer == 1) ? 2 : 1;
+//             lexerBuffer->forward = BUFFER_SIZE - 1;
+//         } else {
+//             if (lexerBuffer->buffer1[lexerBuffer->forward - 1] == '\n' ||
+//                 lexerBuffer->buffer2[lexerBuffer->forward - 1] == '\n') {
+//                 lexerBuffer->lineNo--;  // Decrease line number if retracting over newline
+//             }
+//             lexerBuffer->forward--;
+//         }
+//         count--;
+//     }
+// }
+
 static void retract(int count) {
     while (count > 0) {
         if (lexerBuffer->forward == 0) {
+            // Switch to the previous buffer
             lexerBuffer->currentBuffer = (lexerBuffer->currentBuffer == 1) ? 2 : 1;
             lexerBuffer->forward = BUFFER_SIZE - 1;
         } else {
+            // Check which buffer is active before checking previous character
+            char prevChar = (lexerBuffer->currentBuffer == 1) ? 
+                lexerBuffer->buffer1[lexerBuffer->forward - 1] : 
+                lexerBuffer->buffer2[lexerBuffer->forward - 1];
+
+            if (prevChar == '\n') {
+                lexerBuffer->lineNo--;  // Only decrement if crossing a newline
+            }
+
             lexerBuffer->forward--;
         }
         count--;
     }
 }
+
+
+
+
+
+
+
+
+
+
 
 // Get the current lexeme
 // Add to getLexeme():
@@ -177,6 +224,7 @@ Token* getNextToken(void) {
                 lexerBuffer->begin = lexerBuffer->forward - 1;
                 
                 if (isspace(c)) {
+                    //if (c == '\n') lexerBuffer->lineNo++;
                     lexerBuffer->begin = lexerBuffer->forward;
                     continue;
                 }
@@ -192,7 +240,9 @@ Token* getNextToken(void) {
                 }
 
                 // Follow exact DFA transitions:
-                if (c == '<') currentState = 22;       // Less than branch
+                if (c == '<') {currentState = 22;  
+                goto case_22;
+                }     // Less than branch
                 else if (c == '>') currentState = 30;  // Greater than branch
                 else if (c == '=') currentState = 20;  // Equals branch
                 else if (c == '!') currentState = 21;  // Not equals branch
@@ -262,9 +312,13 @@ Token* getNextToken(void) {
                             token->lexeme[0] = c;
                             token->lexeme[1] = '\0';
                             token->errorType = 2;  // Unknown symbol
+
+                        
                     }
                     token->lineNo = lexerBuffer->lineNo;
-                    lexerBuffer->begin = lexerBuffer->forward;
+                     
+                    lexerBuffer->begin = lexerBuffer->forward;                    
+
                     return token;
                 }
                 break;
@@ -439,69 +493,129 @@ Token* getNextToken(void) {
                 token->errorType = 2;
                 return token;
 
-            case 22: // Less than state
+            case_22:
+            case 22: // Detect `<`
                 c = getNextChar();
-                if (c == '-') {
-                    currentState = 24;  // Start of assignment operator
-                } else if (c == '=') {
+                if (c == '-')
+                {
+                    c = getNextChar();
+                    if (c == '-')
+                    {
+                        c = getNextChar();
+                        if (c == '-')
+                        {
+                            // ✅ Successfully found `<---`
+                            token->type = TK_ASSIGNOP;
+                            token->lexeme = strdup("<---");
+                            token->lineNo = lexerBuffer->lineNo;
+                            lexerBuffer->begin = lexerBuffer->forward;
+                            return token;
+                        }
+                        // ❌ Found `<--` but no third `-`, retract 2 and return `<`
+                        retract(2);
+                    }
+                    else
+                    {
+                        // ❌ Found `<-` but no second `-`, retract 1 and return `<`
+                        retract(1);
+                    }
+                }
+                else if (c == '=')
+                {
+                    // ✅ Successfully found `<=`
                     token->type = TK_LE;
                     token->lexeme = strdup("<=");
                     token->lineNo = lexerBuffer->lineNo;
                     lexerBuffer->begin = lexerBuffer->forward;
                     return token;
-                } else {
+                }
+                else
+                {
+                    // If none of the above matched, return `<` alone.
                     retract(1);
-                    token->type = TK_LT;
-                    token->lexeme = strdup("<");
-                    token->lineNo = lexerBuffer->lineNo;
-                    return token;
                 }
-                break;
 
-            case 24: // First - of assignment
-                c = getNextChar();
-                if (c == '-') {
-                    currentState = 25;
-                } else {
-                    retract(2);
-                    token->type = TK_LT;
-                    token->lexeme = strdup("<");
-                    token->lineNo = lexerBuffer->lineNo;
-                    lexerBuffer->begin = lexerBuffer->forward;
-                    return token;
-                }
-                break;
-
-            case 25:
-                c = getNextChar();
-                    if (c == '-') {
-                        currentState=26;
-                    }
-                    else {
-                        retract(2);
-                        token->type=TK_LT;
-                        token->lexeme = strdup("<");
-                        token->lineNo = lexerBuffer->lineNo;
-                        lexerBuffer->begin = lexerBuffer->forward; 
-                        return token;
-                    }
-                    break;
-                
-
-            case 26: // Second - of assignment
-                c = getNextChar();
-                if (c == '-') {
-                    token->type = TK_ASSIGNOP;
-                    token->lexeme = strdup("<---");
-                    token->lineNo = lexerBuffer->lineNo;
-                    lexerBuffer->begin = lexerBuffer->forward;
-                    return token;
-                }
-                retract(3);
                 token->type = TK_LT;
                 token->lexeme = strdup("<");
                 token->lineNo = lexerBuffer->lineNo;
                 return token;
+
+                // case 22: // Less than state
+                //     c = getNextChar();
+                //     if (c == '-')
+                //     {
+                //         currentState = 24; // Start of assignment operator
+                //         goto case_24;
+                //     }
+                //     else if (c == '=')
+                //     {
+                //         token->type = TK_LE;
+                //         token->lexeme = strdup("<=");
+                //         token->lineNo = lexerBuffer->lineNo;
+                //         lexerBuffer->begin = lexerBuffer->forward;
+                //         return token;
+                //     }
+                //     else
+                //     {
+                //         retract(1);
+                //         token->type = TK_LT;
+                //         token->lexeme = strdup("<");
+                //         token->lineNo = lexerBuffer->lineNo;
+                //         return token;
+                //     }
+
+                // case_24:
+                // case 24: // `<-` detected
+                //     c = getNextChar();
+                //     if (c == '-')
+                //     {
+                //         currentState = 25; // Expecting final `-`
+                //         goto case_25;
+                //     }
+                //     else
+                //     {
+                //         retract(1); // Instead of retract(2), retract only 1 character
+                //         token->type = TK_LT;
+                //         token->lexeme = strdup("<");
+                //         token->lineNo = lexerBuffer->lineNo;
+                //         lexerBuffer->begin = lexerBuffer->forward;
+                //         return token;
+                //     }
+
+                // case_25:
+                // case 25:
+                //     c = getNextChar();
+                //     if (c == '-')
+                //     {
+                //         currentState = 26;
+                //         goto case_26;
+                //     }
+                //     else
+                //     {
+                //         retract(2);
+                //         token->type = TK_LT;
+                //         token->lexeme = strdup("<");
+                //         token->lineNo = lexerBuffer->lineNo;
+                //         lexerBuffer->begin = lexerBuffer->forward;
+                //         return token;
+                //     }
+
+                // case_26:
+                // case 26: // Second - of assignment
+                //     c = getNextChar();
+                //     if (c == '-')
+                //     {
+                //         token->type = TK_ASSIGNOP;
+                //         token->lexeme = strdup("<---");
+                //         token->lineNo = lexerBuffer->lineNo;
+                //         lexerBuffer->begin = lexerBuffer->forward;
+                //         return token;
+                //     }
+                //     retract(3);
+                //     token->type = TK_LT;
+                //     token->lexeme = strdup("<");
+                //     token->lineNo = lexerBuffer->lineNo;
+                //     return token;
 
             case 30: // Greater than state
                 c = getNextChar();
@@ -581,12 +695,14 @@ Token* getNextToken(void) {
                 token->type = TK_SQL;
                 token->lexeme = strdup("[");
                 token->lineNo = lexerBuffer->lineNo;
+                retract(1);  
                 return token;
 
             case 42: // ] state from DFA
                 token->type = TK_SQR;
                 token->lexeme = strdup("]");
                 token->lineNo = lexerBuffer->lineNo;
+                retract(1);  
                 return token;
 
             case 43: // Number start state
