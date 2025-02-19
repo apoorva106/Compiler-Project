@@ -26,7 +26,7 @@ typedef struct {
 } Grammar;
 
 
-// yaha best test krne k liye I have hardcoded a grammar S->AB,A->a|epsilon, B-> b|epsion
+// yaha bas test krne k liye I have hardcoded a grammar S->AB,A->a|epsilon, B-> b|epsion
 Grammar* createTestGrammar() {
     Grammar* grammar = (Grammar*)malloc(sizeof(Grammar));
     
