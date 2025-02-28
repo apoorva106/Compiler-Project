@@ -127,30 +127,28 @@ static void retract(int count) {
 
 // Get the current lexeme
 // Add to getLexeme():
-static char* getLexeme(void) {
+static char* getLexeme() {
     char* lexeme = (char*)malloc(MAX_LEXEME_LEN * sizeof(char));
     int i = 0;
     int bufferIndex = lexerBuffer->begin;
-    int currentBuf = lexerBuffer->currentBuffer;
-
+    int bufferNum = lexerBuffer->currentBuffer;
+    
+    // Continue until we reach the current position or a token delimiter
     while (bufferIndex != lexerBuffer->forward && i < MAX_LEXEME_LEN - 1) {
         char c;
-        if (currentBuf == 1) {
+        if (bufferNum == 1) {
             c = lexerBuffer->buffer1[bufferIndex];
         } else {
             c = lexerBuffer->buffer2[bufferIndex];
         }
-
-        // Break if we hit a non-identifier character
-        if (!isalnum(c) && c != '_') {
-            break;
-        }
-
-        lexeme[i++] = c;
-        bufferIndex++;
         
+        // Check if we've reached a non-lexeme character
+        // Don't break on alphanumeric chars or underscore, as they're valid in identifiers
+        lexeme[i++] = c;
+        
+        bufferIndex++;
         if (bufferIndex >= BUFFER_SIZE) {
-            currentBuf = (currentBuf == 1) ? 2 : 1;
+            bufferNum = (bufferNum == 1) ? 2 : 1;
             bufferIndex = 0;
         }
     }
@@ -801,20 +799,15 @@ Token* getNextToken(void) {
                     }
                     
                     // If more than 2 digits, retract and stop processing exponent
-                    if (exponentDigits == 2 && isdigit(c)) {
-                        retract(1);
-                    }
-                    else if (exponentDigits < 2) {
-                        // Continue capturing remaining digits if less than 2
-                        retract(1);
-                    }
-                    
+                    retract(1);
+    
                     // Finalize the token
                     numBuffer[numLen] = '\0';
                     token->type = TK_RNUM;
                     token->lexeme = strdup(numBuffer);
                     token->value.realValue = atof(numBuffer);
                     token->lineNo = lexerBuffer->lineNo;
+                    lexerBuffer->begin = lexerBuffer->forward;
                     return token;
                 }
                 
