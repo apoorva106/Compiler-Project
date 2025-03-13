@@ -213,26 +213,122 @@ Token* getNextToken(void) {
                 else if (c == ']') currentState = 42;  // Right square bracket
                 else if (c == '_') currentState = 2;  // Function identifier
                 // First, modify the DFA transition in case 1:
+                // else if (c >= 'a' && c <= 'z') {
+                //     if (c >= 'b' && c <= 'd') {
+                //         // Check if it's potentially a keyword starting with 'c'
+                //         if (c == 'c') {
+                //             char nextChar = getNextChar();
+                //             if (nextChar == 'a') { // Potential keyword 'call'
+                //                 retract(1);
+                //                 currentState = 6; // Go to FIELDID path which handles keywords
+                //             } else {
+                //                 retract(1);
+                //                 currentState = 8; // Go to the regular [b-d] identifier path
+                //             }
+                //         } else {
+                //             currentState = 8;  // [b-d] identifiers (non-'c' case)
+                //         }
+                //     } else if (c >= 'a' && c <= 'z') {
+                //         currentState = 6;  // Field identifiers and other identifiers
+                //     }
+                //     break;
+                // }
+                // Modified DFA transition in case 1 to handle both 'call' and 'chemistry'
+
+
+                // // Fix compliant with exact language specifications
+                // else if (c >= 'a' && c <= 'z') {
+                //     if (c >= 'b' && c <= 'd') {
+                //         // Special case for 'c' - check next character
+                //         if (c == 'c') {
+                //             // Peek at the next character
+                //             char nextChar = getNextChar();
+                //             // If next char is in range [2-7], treat as TK_ID pattern
+                //             if (nextChar >= '2' && nextChar <= '7') {
+                //                 retract(1);
+                //                 currentState = 8;  // Regular identifier path for TK_ID
+                //             } 
+                //             // Otherwise, route to keyword/field ID path
+                //             else {
+                //                 retract(1);
+                //                 currentState = 6;  // FIELDID/keyword path
+                //             }
+                //         } else {
+                //             currentState = 8;  // Regular [b-d] identifier path
+                //         }
+                //     } else if (c >= 'a' && c <= 'z') {
+                //         currentState = 6;  // Field identifiers and other identifiers
+                //     }
+                //     break;
+                // }
+
+
+                // Complete fix for handling words starting with b, c, and d
                 else if (c >= 'a' && c <= 'z') {
                     if (c >= 'b' && c <= 'd') {
-                        // Check if it's potentially a keyword starting with 'c'
-                        if (c == 'c') {
-                            char nextChar = getNextChar();
-                            if (nextChar == 'a') { // Potential keyword 'call'
+                        // Special handling for b, c, d characters which could be either keywords or identifiers
+                        char nextChar = getNextChar();
+                        
+                        // For 'b' - check for keywords like "base", "beginpoint"
+                        if (c == 'b') {
+                            // If it's a letter, likely a keyword or field identifier, not an ID token
+                            if ((nextChar >= 'a' && nextChar <= 'z') || nextChar == EOF || nextChar == '\n') {
                                 retract(1);
-                                currentState = 6; // Go to FIELDID path which handles keywords
-                            } else {
-                                retract(1);
-                                currentState = 8; // Go to the regular [b-d] identifier path
+                                currentState = 6;  // Route to FIELDID/keyword path
                             }
-                        } else {
-                            currentState = 8;  // [b-d] identifiers (non-'c' case)
+                            // If it's a valid digit for ID pattern, go to ID path
+                            else if (nextChar >= '2' && nextChar <= '7') {
+                                retract(1);
+                                currentState = 8;  // Regular identifier path
+                            }
+                            // Default fallback
+                            else {
+                                retract(1);
+                                currentState = 6;  // Default to FIELDID path
+                            }
+                        }
+                        // For 'c' - check for keywords like "call"
+                        else if (c == 'c') {
+                            // If it's a letter, likely a keyword or field identifier, not an ID token
+                            if ((nextChar >= 'a' && nextChar <= 'z') || nextChar == EOF || nextChar == '\n') {
+                                retract(1);
+                                currentState = 6;  // Route to FIELDID/keyword path
+                            }
+                            // If it's a valid digit for ID pattern, go to ID path
+                            else if (nextChar >= '2' && nextChar <= '7') {
+                                retract(1);
+                                currentState = 8;  // Regular identifier path
+                            }
+                            // Default fallback
+                            else {
+                                retract(1);
+                                currentState = 6;  // Default to FIELDID path
+                            }
+                        }
+                        // For 'd' - check for keywords like "definetype"
+                        else if (c == 'd') {
+                            // If it's a letter, likely a keyword or field identifier, not an ID token
+                            if ((nextChar >= 'a' && nextChar <= 'z') || nextChar == EOF || nextChar == '\n') {
+                                retract(1);
+                                currentState = 6;  // Route to FIELDID/keyword path
+                            }
+                            // If it's a valid digit for ID pattern, go to ID path
+                            else if (nextChar >= '2' && nextChar <= '7') {
+                                retract(1);
+                                currentState = 8;  // Regular identifier path
+                            }
+                            // Default fallback
+                            else {
+                                retract(1);
+                                currentState = 6;  // Default to FIELDID path
+                            }
                         }
                     } else if (c >= 'a' && c <= 'z') {
                         currentState = 6;  // Field identifiers and other identifiers
                     }
                     break;
                 }
+
                 else if (isdigit(c)) {
                     numBuffer[numLen++] = c;
                     currentState = 43;  // Number recognition
@@ -660,7 +756,7 @@ Token* getNextToken(void) {
                 } else {
                     retract(1);
                     numBuffer[numLen] = '\0';
-                    token->type = TK_RECORDID;  // Changed from TK_RECORDID to TK_RUID
+                    token->type = TK_RUID;  // Changed from TK_RECORDID to TK_RUID
                     token->lexeme = strdup(numBuffer);
                     token->lineNo = lexerBuffer->lineNo;
                     numLen = 0;  // Reset numBuffer
