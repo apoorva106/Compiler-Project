@@ -11,14 +11,15 @@ typedef enum {
     TK_NUM,         // integer
     TK_RNUM,        // real number
     TK_FUNID,       // function identifier
-    TK_RECORDID,    // record identifier
+    TK_RUID,    // record identifier
     TK_WITH,        // with
     TK_PARAMETERS,  // parameters
     TK_END,         // end
     TK_WHILE,       // while
+    TK_ENDWHILE,    // endwhile
     TK_UNION,       // union
     TK_ENDUNION,    // endunion
-    TK_DEFINITETYPE,// definitetype
+    TK_DEFINETYPE,// definetype
     TK_AS,          // as
     TK_TYPE,        // type
     TK_MAIN,        // main
