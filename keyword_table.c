@@ -46,6 +46,10 @@ KeywordTable* initKeywordTable(void) {
         {"union", TK_UNION},
         {"with", TK_WITH},
         {"write", TK_WRITE},
+        {"while", TK_WHILE},
+        {"endwhile", TK_ENDWHILE},
+        {"definetype", TK_DEFINETYPE},
+        {"as", TK_AS},
         {NULL, 0}
     };
 
