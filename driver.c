@@ -12,14 +12,15 @@ const char* getTokenName(TokenType type) {
         case TK_NUM: return "TK_NUM";
         case TK_RNUM: return "TK_RNUM";
         case TK_FUNID: return "TK_FUNID";
-        case TK_RECORDID: return "TK_RECORDID";
+        case TK_RUID: return "TK_RUID";
         case TK_WITH: return "TK_WITH";
         case TK_PARAMETERS: return "TK_PARAMETERS";
         case TK_END: return "TK_END";
         case TK_WHILE: return "TK_WHILE";
+        case TK_ENDWHILE: return "TK_ENDWHILE";
         case TK_UNION: return "TK_UNION";
         case TK_ENDUNION: return "TK_ENDUNION";
-        case TK_DEFINITETYPE: return "TK_DEFINITETYPE";
+        case TK_DEFINETYPE: return "TK_DEFINETYPE";
         case TK_AS: return "TK_AS";
         case TK_TYPE: return "TK_TYPE";
         case TK_MAIN: return "TK_MAIN";
@@ -88,7 +89,7 @@ void printToken(Token* token) {
                 printf("Line no: %d : Lexical Error\n", token->lineNo);
         }
     } else {
-        printf("Line no. %-8d Lexeme %-15s Token %s\n", 
+        printf("Line no. %d\t Lexeme %s\t Token %s\n", 
                token->lineNo, 
                token->lexeme, 
                getTokenName(token->type));
