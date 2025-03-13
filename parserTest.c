@@ -1064,49 +1064,35 @@ void printParseTree(ParseTreeNode* node, Grammar* grammar, int depth) {
     }
 }
 
-// Perform inorder traversal of the parse tree
+// Correct inorder traversal for n-ary trees
 void inorderTraversal(ParseTreeNode* node, Grammar* grammar, FILE* outFile) {
     if (node == NULL) return;
     
+    // Process leftmost child first
+    if (node->firstChild != NULL) {
+        inorderTraversal(node->firstChild, grammar, outFile);
+    }
+    
+    // Process current node
     if (node->isTerminal) {
-        // For terminal nodes
         if (node->lexeme[0] != '\0') {
             fprintf(outFile, "%-20s", grammar->terminals[node->symbolIndex]);
             fprintf(outFile, "Line: %-4d", node->lineNumber);
             fprintf(outFile, "Lexeme: %-20s\n", node->lexeme);
         }
-    }
-    
-    // Process first half of children
-    ParseTreeNode* child = node->firstChild;
-    int childCount = 0;
-    int totalChildren = 0;
-    
-    // Count total children
-    ParseTreeNode* temp = node->firstChild;
-    while (temp != NULL) {
-        totalChildren++;
-        temp = temp->nextSibling;
-    }
-    
-    // Process first half of children
-    while (child != NULL && childCount < totalChildren / 2) {
-        inorderTraversal(child, grammar, outFile);
-        child = child->nextSibling;
-        childCount++;
-    }
-    
-    // Process current node (non-terminal)
-    if (!node->isTerminal) {
+    } else {
         fprintf(outFile, "%-20s", grammar->nonTerminals[node->symbolIndex]);
         fprintf(outFile, "Line: ---");
         fprintf(outFile, "   Internal Node\n");
     }
     
-    // Process second half of children
-    while (child != NULL) {
-        inorderTraversal(child, grammar, outFile);
-        child = child->nextSibling;
+    // Process remaining siblings of the leftmost child
+    if (node->firstChild != NULL) {
+        ParseTreeNode* sibling = node->firstChild->nextSibling;
+        while (sibling != NULL) {
+            inorderTraversal(sibling, grammar, outFile);
+            sibling = sibling->nextSibling;
+        }
     }
 }
 
