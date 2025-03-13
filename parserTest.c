@@ -1096,7 +1096,66 @@ void inorderTraversal(ParseTreeNode* node, Grammar* grammar, FILE* outFile) {
     }
 }
 
-// Read tokens from lexer output file
+// // Read tokens from lexer output file
+// Token* readTokensFromFile(const char* filename, int* numTokens) {
+//     FILE* file = fopen(filename, "r");
+//     if (!file) {
+//         printf("Error opening token file: %s\n", filename);
+//         exit(1);
+//     }
+    
+//     // First pass: count tokens (excluding comments)
+//     int count = 0;
+//     char line[1024];
+    
+//     while (fgets(line, sizeof(line), file)) {
+//         char token[50];
+//         if (sscanf(line, "%*[^T]Token %s", token) == 1) {
+//             // Skip comment tokens
+//             if (strcmp(token, "TK_COMMENT") != 0) {
+//                 count++;
+//             }
+//         }
+//     }
+    
+//     // Allocate memory for tokens
+//     Token* tokens = (Token*)malloc((count + 1) * sizeof(Token)); // +1 for end marker
+    
+//     // Reset file pointer
+//     rewind(file);
+    
+//     // Second pass: read tokens
+//     int index = 0;
+//     int line_no;
+    
+//     while (fgets(line, sizeof(line), file) && index < count) {
+//         char lexeme[100];
+//         char token[50];
+        
+//         if (sscanf(line, "Line no. %d Lexeme %s Token %s", &line_no, lexeme, token) == 3) {
+//             // Skip comment tokens
+//             if (strcmp(token, "TK_COMMENT") != 0) {
+//                 tokens[index].lineNumber = line_no;
+//                 strncpy(tokens[index].lexeme, lexeme, sizeof(tokens[index].lexeme) - 1);
+//                 tokens[index].lexeme[sizeof(tokens[index].lexeme) - 1] = '\0'; // Ensure null termination
+//                 strncpy(tokens[index].token, token, sizeof(tokens[index].token) - 1);
+//                 tokens[index].token[sizeof(tokens[index].token) - 1] = '\0'; // Ensure null termination
+//                 index++;
+//             }
+//         }
+//     }
+    
+//     // Add end marker token (TK_DOLLAR)
+//     strncpy(tokens[index].lexeme, "$", sizeof(tokens[index].lexeme) - 1);
+//     strncpy(tokens[index].token, "TK_DOLLAR", sizeof(tokens[index].token) - 1);
+//     tokens[index].lineNumber = tokens[index-1].lineNumber;
+//     index++;
+    
+//     *numTokens = index;
+//     fclose(file);
+//     return tokens;
+// }
+
 Token* readTokensFromFile(const char* filename, int* numTokens) {
     FILE* file = fopen(filename, "r");
     if (!file) {
@@ -1109,14 +1168,23 @@ Token* readTokensFromFile(const char* filename, int* numTokens) {
     char line[1024];
     
     while (fgets(line, sizeof(line), file)) {
-        char token[50];
-        if (sscanf(line, "%*[^T]Token %s", token) == 1) {
-            // Skip comment tokens
-            if (strcmp(token, "TK_COMMENT") != 0) {
-                count++;
+        // Remove CR if present (for CRLF files)
+        size_t len = strlen(line);
+        if (len > 0 && line[len-1] == '\n') {
+            line[len-1] = '\0';
+            len--;
+            if (len > 0 && line[len-1] == '\r') {
+                line[len-1] = '\0';
+                len--;
             }
         }
+        
+        if (strstr(line, "Token TK_COMMENT") == NULL && strstr(line, "Token ") != NULL) {
+            count++;
+        }
     }
+    
+    printf("Found %d non-comment tokens\n", count);
     
     // Allocate memory for tokens
     Token* tokens = (Token*)malloc((count + 1) * sizeof(Token)); // +1 for end marker
@@ -1126,29 +1194,45 @@ Token* readTokensFromFile(const char* filename, int* numTokens) {
     
     // Second pass: read tokens
     int index = 0;
-    int line_no;
     
     while (fgets(line, sizeof(line), file) && index < count) {
-        char lexeme[100];
-        char token[50];
-        
-        if (sscanf(line, "Line no. %d Lexeme %s Token %s", &line_no, lexeme, token) == 3) {
-            // Skip comment tokens
-            if (strcmp(token, "TK_COMMENT") != 0) {
-                tokens[index].lineNumber = line_no;
-                strncpy(tokens[index].lexeme, lexeme, sizeof(tokens[index].lexeme) - 1);
-                tokens[index].lexeme[sizeof(tokens[index].lexeme) - 1] = '\0'; // Ensure null termination
-                strncpy(tokens[index].token, token, sizeof(tokens[index].token) - 1);
-                tokens[index].token[sizeof(tokens[index].token) - 1] = '\0'; // Ensure null termination
-                index++;
+        // Remove CR if present (for CRLF files)
+        size_t len = strlen(line);
+        if (len > 0 && line[len-1] == '\n') {
+            line[len-1] = '\0';
+            len--;
+            if (len > 0 && line[len-1] == '\r') {
+                line[len-1] = '\0';
+                len--;
             }
         }
+        
+        // Skip comment tokens
+        if (strstr(line, "Token TK_COMMENT") != NULL) {
+            continue;
+        }
+        
+        int line_no;
+        char lexeme[100] = {0};
+        char token[50] = {0};
+        
+        // Try to parse the line
+        if (sscanf(line, "Line no. %d Lexeme %s Token %s", &line_no, lexeme, token) == 3) {
+            tokens[index].lineNumber = line_no;
+            strncpy(tokens[index].lexeme, lexeme, sizeof(tokens[index].lexeme) - 1);
+            tokens[index].lexeme[sizeof(tokens[index].lexeme) - 1] = '\0'; // Ensure null termination
+            strncpy(tokens[index].token, token, sizeof(tokens[index].token) - 1);
+            tokens[index].token[sizeof(tokens[index].token) - 1] = '\0'; // Ensure null termination
+            index++;
+        }
     }
+    
+    printf("Successfully loaded %d tokens\n", index);
     
     // Add end marker token (TK_DOLLAR)
     strncpy(tokens[index].lexeme, "$", sizeof(tokens[index].lexeme) - 1);
     strncpy(tokens[index].token, "TK_DOLLAR", sizeof(tokens[index].token) - 1);
-    tokens[index].lineNumber = tokens[index-1].lineNumber;
+    tokens[index].lineNumber = (index > 0) ? tokens[index-1].lineNumber : 1;
     index++;
     
     *numTokens = index;
@@ -1390,12 +1474,12 @@ int main() {
     printParseTable(parseTable, grammar);
 
     // Write parse table to files in different formats for better visualization
-    writeParseTableToCsv(parseTable, grammar, "parse_table.csv");
-    writeParseTableToHtml(parseTable, grammar, "parse_table.html");
+    writeParseTableToCsv(parseTable, grammar, "parse_table_all.csv");
+    writeParseTableToHtml(parseTable, grammar, "parse_table_all.html");
 
     // Parse source code using lexer output with hardcoded file names
-    printf("\nParsing source code from lexer output lexemesandtokens_t2.txt...\n");
-    parseSourceCode(grammar, parseTable, "lexemesandtokens_t2.txt", "parse_tree.txt");
+    printf("\nParsing source code from lexer output...\n");
+    parseSourceCode(grammar, parseTable, "output_t6.txt", "parse_tree6.txt");
     
     return 0;
 }
