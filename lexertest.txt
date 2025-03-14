@@ -1,0 +1,172 @@
+% Lexical Analyzer Test File for CS F363 Compiler Project
+
+% Testing Function Identifiers (TK_FUNID)
+_statistics
+_compilerDemo123
+_lexicalAnalyzer
+_syntaxChecker9
+_main
+
+% Testing Variable Identifiers (TK_ID)
+b2
+c3
+d4
+b2c3d4
+c5d6b7
+d2b3c4d5
+b7b7b7
+c2c2c2
+d3d3d3
+
+% Testing Record/Union Identifiers (TK_RUID)
+#finance
+#book
+#student
+#employee
+#company
+
+% Testing Field Identifiers (TK_FIELDID)
+value
+price
+cost
+age
+name
+rollno
+edition
+interest
+rate
+marks
+
+% Testing Integer Numbers (TK_NUM)
+0
+1
+42
+123
+9999
+1000000
+
+% Testing Real Numbers (TK_RNUM)
+3.14
+0.01
+123.45
+9999.99
+0.12
+42.00
+
+% Testing Real Numbers with Exponent (TK_RNUM)
+1.23E+01
+3.14E-02
+9.99E+99
+1.00E+00
+5.67E-11
+
+% Testing Operators
+<--- % TK_ASSIGNOP
++ % TK_PLUS
+- % TK_MINUS
+* % TK_MUL
+/ % TK_DIV
+< % TK_LT
+<= % TK_LE
+== % TK_EQ
+> % TK_GT
+>= % TK_GE
+!= % TK_NE
+&&& % TK_AND
+@@@ % TK_OR
+~ % TK_NOT
+
+% Testing Delimiters
+[ % TK_SQL
+] % TK_SQR
+( % TK_OP
+) % TK_CL
+; % TK_SEM
+: % TK_COLON
+, % TK_COMMA
+. % TK_DOT
+
+% Testing Keywords
+with % TK_WITH
+parameters % TK_PARAMETERS
+end % TK_END
+while % TK_WHILE
+union % TK_UNION
+endunion % TK_ENDUNION
+definetype % TK_DEFINETYPE
+as % TK_AS
+type % TK_TYPE
+global % TK_GLOBAL
+parameter % TK_PARAMETER
+list % TK_LIST
+input % TK_INPUT
+output % TK_OUTPUT
+int % TK_INT
+real % TK_REAL
+endwhile % TK_ENDWHILE
+if % TK_IF
+then % TK_THEN
+endif % TK_ENDIF
+read % TK_READ
+write % TK_WRITE
+return % TK_RETURN
+call % TK_CALL
+record % TK_RECORD
+endrecord % TK_ENDRECORD
+else % TK_ELSE
+
+% Testing Complete Sample Code
+_sampleFunction input parameter list [int c2dbc, int d7, int b2d567] output parameter list [real d2, real c3bcd];
+type real: c3 : global; 
+c3 <--- 3;
+d2 <--- (c2dbc + d7 + b2d567)/c3; 
+c3bcd <--- d2*3.23;
+return [d2,c3bcd];
+end
+
+% Testing Record Type Definition
+record #finance
+type int: value; 
+type real: rate; 
+type int: interest;
+endrecord
+
+% Testing Union Type Definition
+union #student
+type int: rollno; 
+type real: marks; 
+type int: age;
+endunion
+
+% Testing Type Definition (Aliases)
+definetype union #student as #newname;
+definetype record #finance as #newfin;
+
+% Testing Conditional Statements
+if(c7>=d2dc) 
+then
+    write(c7);
+else 
+    write(d2dc);
+endif
+
+% Testing While Loop
+while(c2d3 <=d2c3)
+    c2d3 <--- c2d3+1; 
+    write(c2d3);
+endwhile
+
+% Testing Function Call
+[c2d3, c2d4]<---call _function1 with parameters [b4d333, c3ddd34];
+
+% Testing Record Field Access
+d5bb45.value <--- 30;
+d5bb45.rate <--- 30.5;
+
+% Testing Error Cases (Lexical Errors)
+<-- % Invalid assignment operator
+23. % Invalid real number
+23.45E % Invalid exponent form
+! % Invalid operator
+@@ % Invalid operator
+&& % Invalid operator
